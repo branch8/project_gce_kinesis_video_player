@@ -1,7 +1,7 @@
 {
-  "hlsUrl": "https://b-f123ebe5.kinesisvideo.ap-southeast-2.amazonaws.com/hls/v1/getHLSMasterPlaylist.m3u8?SessionToken=CiBGtsT5OdHbvL4dakRcTkBuxNDEUEcD9Y26bvfMpu39CxIQSqKSTKjyhCODA9OJC135SxoZcYk-iElszMUX_u3xH6gIVvT5sN-Zygr4jiIg9obZPtEeA5JuSdZFdRku_IYlWqvCqfebmMFBz2fBx5w~",
-  "expires": "2025-05-29T08:56:41.886973Z",
-  "lastUpdated": "2025-05-29T07:56:41.886973Z",
+  "hlsUrl": "https://b-f123ebe5.kinesisvideo.ap-southeast-2.amazonaws.com/hls/v1/getHLSMasterPlaylist.m3u8?SessionToken=CiCTnQkT_M8CbrLry7y4GJ8XKgDWdZrtciYf02ABq21nzRIQEd4GURvtYEen18AQMLaD9RoZeHRs6MpLj2tf9xLYnksnj_XAK3R7RAiH6iIg7s-YYAVkoJbL3upWFaVxldg6_eT2NzHMfAbkwqTBjLs~",
+  "expires": "2025-05-29T09:07:27.655448Z",
+  "lastUpdated": "2025-05-29T08:07:27.655448Z",
   "streamName": "iot-camera-poc",
   "region": "ap-southeast-2",
   "status": "success"
