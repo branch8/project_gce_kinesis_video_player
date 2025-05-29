@@ -23,6 +23,7 @@ def refresh_hls_url():
     """Refresh HLS URL for Kinesis Video Stream"""
     try:
         # Get configuration from environment
+        # AWS_REGION and STREAM_NAME come from GitHub Variables (not secrets)
         aws_region = get_env_var('AWS_REGION', 'ap-southeast-2')
         stream_name = get_env_var('STREAM_NAME', 'iot-camera-poc')
         
