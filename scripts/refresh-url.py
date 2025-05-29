@@ -82,7 +82,7 @@ def refresh_hls_url():
         
         print("✅ Successfully updated stream URL")
         print(f"📅 Expires: {stream_data['expires']}")
-        print(f"🔗 URL length: {len(hls_url)} characters")``
+        print(f"🔗 URL length: {len(hls_url)} characters")
         print(f"💾 Saved to: {json_file}")
         
         return True
