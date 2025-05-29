@@ -6,6 +6,7 @@
     <title>IoT Camera Live Feed</title>
     <link href="https://vjs.zencdn.net/8.6.1/video-js.css" rel="stylesheet">
     <script src="https://vjs.zencdn.net/8.6.1/video.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         body {
             margin: 0;
@@ -302,7 +303,7 @@
                     throw new Error('Video.js library not loaded');
                 }
                 
-                // Initialize Video.js player
+                // Initialize Video.js player with HLS.js support
                 player = videojs('kinesis-video', {
                     liveui: true,
                     responsive: true,
@@ -311,10 +312,40 @@
                         hls: {
                             enableLowInitialPlaylist: true,
                             smoothQualityChange: true,
-                            overrideNative: true
+                            overrideNative: !videojs.browser.IS_SAFARI // Use hls.js for non-Safari browsers
                         }
                     }
                 });
+                
+                // For browsers that don't support HLS natively, use hls.js
+                if (typeof Hls !== 'undefined' && Hls.isSupported() && !videojs.browser.IS_SAFARI) {
+                    addDebugLog('Using HLS.js for video playback');
+                    const hls = new Hls();
+                    hls.loadSource(streamData.hlsUrl);
+                    hls.attachMedia(player.tech().el());
+                    
+                    hls.on(Hls.Events.ERROR, function (event, data) {
+                        addDebugLog(`HLS.js error: ${data.type} - ${data.details}`);
+                        if (data.fatal) {
+                            switch(data.type) {
+                                case Hls.ErrorTypes.NETWORK_ERROR:
+                                    addDebugLog('Fatal network error, trying to recover...');
+                                    hls.startLoad();
+                                    break;
+                                case Hls.ErrorTypes.MEDIA_ERROR:
+                                    addDebugLog('Fatal media error, trying to recover...');
+                                    hls.recoverMediaError();
+                                    break;
+                                default:
+                                    addDebugLog('Fatal error, cannot recover');
+                                    hls.destroy();
+                                    break;
+                            }
+                        }
+                    });
+                } else {
+                    addDebugLog('Using native HLS support');
+                }
                 
                 addDebugLog('Video.js player created successfully');
                 setupPlayerEvents();
