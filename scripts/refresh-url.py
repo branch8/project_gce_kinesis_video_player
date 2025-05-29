@@ -46,7 +46,7 @@ def refresh_hls_url():
         # Get HLS streaming URL
         print("🎥 Generating HLS streaming URL...")
         kinesis_video_archived = boto3.client(
-            'kinesisvideo-archived-media',
+            'kinesis-video-archived-media',
             endpoint_url=data_endpoint,
             region_name=aws_region
         )
