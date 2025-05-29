@@ -97,6 +97,17 @@
             text-align: left;
         }
         
+        .debug-panel {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: left;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
         .spinner {
             border: 3px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
@@ -166,6 +177,9 @@
             <button class="btn" onclick="toggleMute()">
                 🔊 Toggle Audio
             </button>
+            <button class="btn" onclick="testHLSUrl()">
+                🔧 Test HLS URL
+            </button>
         </div>
         
         <div class="info-panel">
@@ -174,6 +188,12 @@
             <p><strong>Token Expires:</strong> <span id="tokenExpiry">Unknown</span></p>
             <p><strong>Auto-Refresh:</strong> Every 45 minutes</p>
             <p><strong>Stream Status:</strong> <span id="streamStatus">Initializing</span></p>
+            <p><strong>HLS URL:</strong> <span id="hlsUrlPreview">Loading...</span></p>
+        </div>
+        
+        <div class="debug-panel" id="debugPanel" style="display: none;">
+            <h4>🐛 Debug Information</h4>
+            <div id="debugLog"></div>
         </div>
     </div>
 
@@ -182,31 +202,80 @@
         let refreshInterval;
         let countdownInterval;
         let nextRefreshTime;
+        let debugLog = [];
         
         // Configuration
         const REFRESH_INTERVAL = 45 * 60 * 1000; // 45 minutes
         const API_BASE_URL = window.location.origin;
         
+        function addDebugLog(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            debugLog.push(`[${timestamp}] ${message}`);
+            console.log(message);
+            
+            const debugPanel = document.getElementById('debugPanel');
+            const debugLogEl = document.getElementById('debugLog');
+            debugLogEl.innerHTML = debugLog.slice(-10).join('<br>');
+            debugPanel.style.display = 'block';
+        }
+        
         async function fetchStreamUrl() {
             try {
+                addDebugLog(`Fetching stream URL from: ${API_BASE_URL}/api/stream-url.json`);
                 const response = await fetch(`${API_BASE_URL}/api/stream-url.json?t=${Date.now()}`);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                addDebugLog(`Response status: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
                 
                 const data = await response.json();
+                addDebugLog(`Received data: ${JSON.stringify(data, null, 2)}`);
+                
+                if (!data.hlsUrl) {
+                    throw new Error('No hlsUrl found in response data');
+                }
+                
                 return data;
             } catch (error) {
-                console.error('Failed to fetch stream URL:', error);
+                addDebugLog(`Fetch error: ${error.message}`);
                 throw error;
+            }
+        }
+        
+        async function testHLSUrl() {
+            try {
+                const streamData = await fetchStreamUrl();
+                const hlsUrl = streamData.hlsUrl;
+                
+                addDebugLog(`Testing HLS URL: ${hlsUrl.substring(0, 100)}...`);
+                
+                // Test if URL is accessible
+                const response = await fetch(hlsUrl, { method: 'HEAD' });
+                addDebugLog(`HLS URL test response: ${response.status} ${response.statusText}`);
+                
+                if (response.ok) {
+                    alert('✅ HLS URL is accessible!');
+                } else {
+                    alert(`❌ HLS URL returned: ${response.status} ${response.statusText}`);
+                }
+            } catch (error) {
+                addDebugLog(`HLS URL test failed: ${error.message}`);
+                alert(`❌ HLS URL test failed: ${error.message}`);
             }
         }
         
         async function initializePlayer() {
             updateStatus('loading', 'Loading stream URL...');
+            addDebugLog('Starting player initialization...');
             
             try {
                 const streamData = await fetchStreamUrl();
+                addDebugLog(`Stream data received: ${streamData.streamName}`);
                 
                 if (player) {
+                    addDebugLog('Disposing existing player...');
                     player.dispose();
                 }
                 
@@ -226,6 +295,13 @@
                     </video-js>
                 `;
                 
+                addDebugLog('Creating Video.js player...');
+                
+                // Check if videojs is loaded
+                if (typeof videojs === 'undefined') {
+                    throw new Error('Video.js library not loaded');
+                }
+                
                 // Initialize Video.js player
                 player = videojs('kinesis-video', {
                     liveui: true,
@@ -240,34 +316,43 @@
                     }
                 });
                 
+                addDebugLog('Video.js player created successfully');
                 setupPlayerEvents();
                 updateStreamInfo(streamData);
                 scheduleNextRefresh();
                 
             } catch (error) {
-                updateStatus('error', 'Failed to load stream');
+                updateStatus('error', `Failed to load stream: ${error.message}`);
+                addDebugLog(`Initialization error: ${error.message}`);
                 console.error('Initialization error:', error);
             }
         }
         
         function setupPlayerEvents() {
+            addDebugLog('Setting up player events...');
+            
             player.ready(function() {
+                addDebugLog('Player ready event fired');
                 updateStatus('ready', 'Stream Ready');
                 document.getElementById('streamStatus').textContent = 'Connected';
             });
             
             player.on('error', function(e) {
+                const error = player.error();
+                addDebugLog(`Player error: ${error ? error.message : 'Unknown error'}`);
                 updateStatus('error', 'Stream Error');
                 document.getElementById('streamStatus').textContent = 'Error - Will auto-refresh';
-                console.error('Player error:', e);
+                console.error('Player error:', e, error);
             });
             
             player.on('loadstart', function() {
+                addDebugLog('Player loadstart event');
                 updateStatus('loading', 'Loading Stream...');
                 document.getElementById('streamStatus').textContent = 'Connecting...';
             });
             
             player.on('canplay', function() {
+                addDebugLog('Player canplay event');
                 updateStatus('ready', 'Stream Ready');
                 document.getElementById('streamStatus').textContent = 'Connected';
             });
@@ -294,6 +379,11 @@
             if (streamData.expires) {
                 const expiryDate = new Date(streamData.expires);
                 document.getElementById('tokenExpiry').textContent = expiryDate.toLocaleString();
+            }
+            
+            if (streamData.hlsUrl) {
+                const preview = streamData.hlsUrl.substring(0, 80) + '...';
+                document.getElementById('hlsUrlPreview').textContent = preview;
             }
         }
         
@@ -326,6 +416,7 @@
         
         async function manualRefresh() {
             updateStatus('refreshing', 'Refreshing stream...');
+            addDebugLog('Manual refresh triggered');
             await initializePlayer();
         }
         
@@ -346,7 +437,10 @@
         }
         
         // Initialize when page loads
-        window.addEventListener('load', initializePlayer);
+        window.addEventListener('load', function() {
+            addDebugLog('Page loaded, starting initialization...');
+            initializePlayer();
+        });
         
         // Cleanup on page unload
         window.addEventListener('beforeunload', function() {
