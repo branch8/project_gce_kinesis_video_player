@@ -1,0 +1,51 @@
+name: Refresh Kinesis Video Stream Token
+
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allow manual trigger
+  push:
+    branches: [ main ]
+
+jobs:
+  refresh-token:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install boto3
+        
+    - name: Make script executable
+      run: chmod +x scripts/refresh-url.py
+        
+    - name: Refresh HLS URL
+      run: python scripts/refresh-url.py
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        STREAM_NAME: ${{ secrets.STREAM_NAME }}
+        
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add api/stream-url.json
+        git add api/error.json 2>/dev/null || true  # Add error file if it exists
+        if ! git diff --staged --quiet; then
+          git commit -m "Auto-refresh HLS token - $(date)"
+          git push
+        else
+          echo "No changes to commit"
+        fi
